@@ -1,0 +1,11 @@
+{
+  "action_frac": {
+    "noop": 0.304,
+    "left_engine": 0.112,
+    "main_engine": 0.481,
+    "right_engine": 0.103
+  },
+  "mean_len": 208.15,
+  "mean_reward": 285.23059430561295,
+  "run": "baseline_s0"
+}
