@@ -27,6 +27,8 @@ for name, size in (("Heading 1", 16), ("Heading 2", 14)):
     h.element.rPr.rFonts.set(qn("w:eastAsia"), "Times New Roman")
     h.element.rPr.rFonts.set(qn("w:ascii"), "Times New Roman")
     h.element.rPr.rFonts.set(qn("w:hAnsi"), "Times New Roman")
+    for a in ("w:asciiTheme", "w:hAnsiTheme", "w:eastAsiaTheme", "w:cstheme"):
+        h.element.rPr.rFonts.attrib.pop(qn(a), None)
     h.paragraph_format.space_before = Pt(12); h.paragraph_format.space_after = Pt(6)
 
 
@@ -80,12 +82,18 @@ def table(caption, rows, widths=None, bold_cells=()):
     tab_no[0] += 1
     c = doc.add_paragraph(); c.alignment = WD_ALIGN_PARAGRAPH.LEFT
     c.add_run(f"Таблица {tab_no[0]} – {caption}")
+    c.paragraph_format.keep_with_next = True
     t = doc.add_table(rows=len(rows), cols=len(rows[0])); t.style = "Table Grid"
     t.alignment = WD_TABLE_ALIGNMENT.CENTER
+    t.autofit = False
+    if widths:
+        for j, w in enumerate(widths):
+            t.columns[j].width = Cm(w)
     for i, row in enumerate(rows):
         for j, val in enumerate(row):
             cell = t.cell(i, j); cell.text = ""
             p = cell.paragraphs[0]; p.paragraph_format.line_spacing = 1.0
+            p.paragraph_format.keep_with_next = i < len(rows) - 1
             r = p.add_run(str(val)); r.font.size = Pt(12)
             if i == 0 or (i, j) in bold_cells: r.bold = True
             if widths: cell.width = Cm(widths[j])
@@ -101,17 +109,17 @@ def formula(text):
 for line in ["Министерство науки и высшего образования Российской Федерации",
              "[Наименование университета]", "[Кафедра]"]:
     para(line, align=WD_ALIGN_PARAGRAPH.CENTER, indent=False)
-for _ in range(6): doc.add_paragraph()
+for _ in range(5): doc.add_paragraph()
 p = para("ОТЧЁТ", align=WD_ALIGN_PARAGRAPH.CENTER, indent=False); p.runs[0].bold = True
 para("по лабораторной работе № 1", align=WD_ALIGN_PARAGRAPH.CENTER, indent=False)
 para("по дисциплине «[Название дисциплины]»", align=WD_ALIGN_PARAGRAPH.CENTER, indent=False)
 p = para("Обучение стратегии поведения с помощью алгоритма итерации по ценностям действий",
          align=WD_ALIGN_PARAGRAPH.CENTER, indent=False); p.runs[0].bold = True
-for _ in range(6): doc.add_paragraph()
+for _ in range(4): doc.add_paragraph()
 for line in ["Выполнил(а): студент(ка) группы [номер группы]", "[Фамилия И. О.]", "",
              "Проверил(а): [должность]", "[Фамилия И. О.]"]:
     para(line, align=WD_ALIGN_PARAGRAPH.RIGHT, indent=False)
-for _ in range(5): doc.add_paragraph()
+for _ in range(3): doc.add_paragraph()
 para("[Город] 2026", align=WD_ALIGN_PARAGRAPH.CENTER, indent=False)
 doc.add_page_break()
 
