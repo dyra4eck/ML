@@ -1,0 +1,591 @@
+<title>Тренажёр RL-лаб</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Раскладка: рабочий стол тренажёра — слева «мир» (поле / модуль), справа пульт и показатели, ниже разбор и задания */
+:root {
+  --bg: #f3f6f9; --panel: #ffffff; --ink: #15202b; --ink-2: #4c5a68; --line: #d5dde5; --muted: #e6ebf0;
+  --accent: #2a78d6; --accent-ink: #ffffff; --raw: #8d99a6;
+  --good: #1a7f37; --bad: #cf3a39; --warn: #b26a00;
+  --font-display: "Manrope", "Inter", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #11161c; --panel: #1a2129; --ink: #e8edf2; --ink-2: #a7b3c0; --line: #2f3a46; --muted: #252e38;
+  --accent: #3987e5; --accent-ink: #ffffff; --raw: #6f7c8a; --good: #4cc26a; --bad: #e66767; --warn: #e0a030; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #11161c; --panel: #1a2129; --ink: #e8edf2; --ink-2: #a7b3c0; --line: #2f3a46; --muted: #252e38;
+  --accent: #3987e5; --accent-ink: #ffffff; --raw: #6f7c8a; --good: #4cc26a; --bad: #e66767; --warn: #e0a030; color-scheme: dark }
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--font-body); padding-block: 20px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)) }
+.wrap { max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px }
+h1 { font: 700 26px/1.2 var(--font-display); margin: 0; text-wrap: balance }
+h2 { font: 700 17px/1.3 var(--font-display); margin: 0 }
+h3 { font: 600 12px/1.3 var(--font-body); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); margin: 0 }
+p { margin: 0; max-width: 68ch }
+.lead { color: var(--ink-2) }
+.tabs { display: flex; gap: 6px; flex-wrap: wrap }
+.tab { font: 600 14px var(--font-body); padding: 9px 14px; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: var(--ink-2); cursor: pointer }
+.tab[aria-selected="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink) }
+.grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start }
+@media (max-width: 780px) { .grid2 { grid-template-columns: minmax(0, 1fr) } }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0 }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+button.btn { font: 500 14px var(--font-body); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer }
+button.btn:hover { border-color: var(--accent) }
+button.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600 }
+button.btn:disabled { opacity: .5; cursor: default }
+button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible, .cell:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+select { font: 14px var(--font-body); padding: 7px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); max-width: 100% }
+label.f { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--ink-2); min-width: 0 }
+label.c { display: flex; gap: 8px; align-items: center; font-size: 14px }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 8px }
+.stat { background: var(--muted); border-radius: 8px; padding: 8px 10px; min-width: 0 }
+.stat b { display: block; font: 600 18px var(--font-mono); font-variant-numeric: tabular-nums }
+.stat span { font-size: 12px; color: var(--ink-2) }
+.log { font-size: 14px; background: var(--muted); border-radius: 8px; padding: 10px 12px; min-height: 44px }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 13px }
+.steps { display: grid; gap: 8px }
+.stepbtn { display: grid; grid-template-columns: 26px 1fr; gap: 10px; text-align: left; align-items: start }
+.stepbtn i { font: 600 13px var(--font-mono); width: 26px; height: 26px; border-radius: 50%; background: var(--muted); display: grid; place-items: center; font-style: normal }
+.stepbtn small { display: block; color: var(--ink-2); font-size: 12px }
+svg { display: block; width: 100%; height: auto }
+.lake { max-width: 440px; width: 100%; margin: 0 auto }
+.cell { cursor: pointer }
+.cell text { font-family: var(--font-mono); fill: var(--ink); pointer-events: none }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--ink-2) }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 5px }
+.bd { display: grid; gap: 8px }
+.bd .act { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; overflow-x: auto }
+.bd .act.best { border-color: var(--accent) }
+.bd .act .t { color: var(--ink-2); white-space: nowrap }
+details.task { border-top: 1px solid var(--line); padding-top: 10px }
+details.task summary { cursor: pointer; font-weight: 500 }
+details.task p { margin-top: 6px; color: var(--ink-2) }
+.bar { height: 8px; background: var(--muted); border-radius: 4px; overflow: hidden }
+.bar > i { display: block; height: 100%; background: var(--accent) }
+canvas { display: block; width: 100%; border-radius: 8px; background: var(--muted) }
+.chartbox { position: relative }
+.tip { position: absolute; pointer-events: none; background: var(--ink); color: var(--bg); font-size: 12px; padding: 4px 8px; border-radius: 6px; white-space: nowrap; transform: translate(-50%, -110%) }
+.note { font-size: 13px; color: var(--ink-2) }
+.pill { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 99px; background: var(--muted) }
+.pill.good { color: var(--good) } .pill.bad { color: var(--bad) } .pill.warn { color: var(--warn) }
+</style>
+
+<div class="wrap">
+  <header style="display:flex;flex-direction:column;gap:10px">
+    <h1>Тренажёр по лабораторным: обучение с подкреплением</h1>
+    <p class="lead">Нажимай кнопки и смотри, что меняется. Всё считается прямо в браузере тем же алгоритмом, что и в коде лабораторных.</p>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" id="tab-lab1" data-tab="lab1">Лаба 1 · Q-итерация на льду</button>
+      <button class="tab" role="tab" id="tab-lab2" data-tab="lab2">Лаба 2 · DQN и посадка модуля</button>
+    </div>
+  </header>
+
+  <!-- ================= ЛАБА 1 ================= -->
+  <section id="lab1" class="wrap" style="gap:18px">
+    <div class="grid2">
+      <div class="panel">
+        <div class="row" style="justify-content:space-between">
+          <h2>Замёрзшее озеро</h2>
+          <label class="f">Что показывать
+            <select id="l1-view"><option value="v">ценность клетки V</option><option value="n">сколько данных собрано</option></select>
+          </label>
+        </div>
+        <div class="lake" id="l1-grid"></div>
+        <div class="legend">
+          <span><i style="background:var(--bad)"></i>H — полынья</span><span><i style="background:var(--good)"></i>G — цель</span>
+          <span>стрелка — лучшее действие по Q</span><span>число — V = max Q</span>
+        </div>
+        <p class="note">Лёд скользкий: агент идёт куда хотел только в 1 случае из 3, в остальных его сносит вбок. Нажми на клетку, чтобы увидеть, как считается её Q.</p>
+      </div>
+      <div class="panel">
+        <h2>Одна итерация обучения = три шага</h2>
+        <div class="steps">
+          <button class="btn stepbtn" id="l1-collect"><i>1</i><span>Сделать 100 случайных шагов<small>агент бродит наугад и считает, куда его приводит каждое действие</small></span></button>
+          <button class="btn stepbtn" id="l1-q"><i>2</i><span>Пересчитать Q по уравнению Беллмана<small>один проход по всем клеткам и действиям</small></span></button>
+          <button class="btn stepbtn" id="l1-test"><i>3</i><span>Проверить: 20 эпизодов по стрелкам<small>доля дошедших до цели — это reward на графике</small></span></button>
+        </div>
+        <div class="row">
+          <button class="btn primary" id="l1-iter">Итерация целиком</button>
+          <button class="btn" id="l1-iter10">×10</button>
+          <button class="btn" id="l1-play">Показать один эпизод</button>
+          <button class="btn" id="l1-reset">Сброс</button>
+        </div>
+        <div class="row">
+          <label class="f">γ — насколько ценится будущее
+            <select id="l1-gamma"><option>0.7</option><option selected>0.9</option><option>0.99</option></select></label>
+          <label class="f">Функция награды
+            <select id="l1-reward"></select></label>
+        </div>
+        <div class="log" id="l1-log">Все Q равны нулю: агент ничего не знает. Начни с шага 1.</div>
+        <div class="stats" id="l1-stats"></div>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="panel">
+        <h2 id="l1-bd-title">Разбор клетки</h2>
+        <p class="note">Для каждого действия: <span class="mono">Q = Σ доля × (награда + γ × V следующей клетки)</span>. Доля — как часто действие приводило в эту клетку по собранным данным.</p>
+        <div class="bd" id="l1-bd"></div>
+      </div>
+      <div class="panel">
+        <h2>Как растёт качество</h2>
+        <div class="legend"><span><i style="background:var(--raw)"></i>тест на 20 эпизодах (шумный)</span><span><i style="background:var(--accent)"></i>точная вероятность дойти до цели</span></div>
+        <div class="chartbox" id="l1-chart"></div>
+        <p class="note">Серая линия прыгает, потому что 20 эпизодов — мало. Синяя посчитана точно по настоящим вероятностям скольжения. Пунктир — порог 0.8 из методички.</p>
+        <h3>Попробуй сам</h3>
+        <details class="task"><summary>Нажми шаги 1 и 2 по одному разу. Какие клетки получили ценность?</summary><p>Обычно только соседи цели (или вообще никакие, если агент наугад ни разу не дошёл до G). Награда есть только на переходе в цель, и за один пересчёт она «протекает» примерно на одну клетку назад. Повтори шаги — ценность поползёт к старту.</p></details>
+        <details class="task"><summary>Почему в левом верхнем углу стрелка «влево», в стену?</summary><p>Нажми на клетку и сравни действия. При «влево» агента сносит только вверх (в стену) или вниз (полезно). При «вправо» или «вниз» есть шанс уехать к полынье. Идти в стену безопаснее.</p></details>
+        <details class="task"><summary>Поставь γ = 0.7 и сделай 30 итераций. Что с синей линией?</summary><p>Она ниже, чем при 0.99 (около 0.35–0.45 против 0.74). Далёкая награда почти обесценивается, числа у старта порядка 0.001, и агент выбирает короткие рискованные пути.</p></details>
+        <details class="task"><summary>Выбери награду «−0.2 за шаг». Куда показывают стрелки?</summary><p>В полыньи. Падение заканчивает эпизод и останавливает штрафы, поэтому «утопиться» выгоднее, чем долго идти. Агент оптимизирует ровно то, что ему задали.</p></details>
+        <details class="task"><summary>Может ли синяя линия дойти до 1?</summary><p>Нет, максимум 0.74. Из некоторых клеток при любом действии есть шанс упасть в полынью, и ещё есть лимит в 100 шагов. Порог 0.8 серая линия пробивает только случайно.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ЛАБА 2 ================= -->
+  <section id="lab2" class="wrap" style="gap:18px" hidden>
+    <p class="note">Это упрощённая модель: модуль движется только по вертикали, действий два (ничего / главный двигатель). Настоящий LunarLander сложнее, но алгоритм DQN здесь тот же, что в <span class="mono">dqn.py</span>: сеть, буфер повторов, целевая сеть, ε-жадный выбор.</p>
+    <div class="grid2">
+      <div class="panel">
+        <div class="row" style="justify-content:space-between"><h2>Модуль</h2><span id="l2-outcome" class="pill">ждёт</span></div>
+        <canvas id="l2-lander" width="640" height="300" style="aspect-ratio:640/300"></canvas>
+        <div class="stats" id="l2-now"></div>
+        <h2>Что сеть решила бы в каждой ситуации</h2>
+        <canvas id="l2-map" width="640" height="260" style="aspect-ratio:640/260"></canvas>
+        <div class="legend"><span><i style="background:var(--accent)"></i>включить двигатель</span><span><i style="background:var(--line)"></i>ничего не делать</span><span>по вертикали — высота, по горизонтали — скорость (слева быстро падает, справа летит вверх)</span></div>
+      </div>
+      <div class="panel">
+        <h2>Обучение</h2>
+        <div class="row">
+          <button class="btn" id="l2-step">1 шаг</button>
+          <button class="btn primary" id="l2-ep">1 эпизод</button>
+          <button class="btn" id="l2-ep10">10 эпизодов</button>
+          <button class="btn" id="l2-auto">Авто</button>
+          <button class="btn" id="l2-watch">Посадка без случайных действий</button>
+          <button class="btn" id="l2-reset">Сброс</button>
+        </div>
+        <div class="log" id="l2-log">Сеть случайная. Нажми «1 эпизод» и посмотри, что делает необученный агент.</div>
+        <div class="stats" id="l2-stats"></div>
+        <label class="f">ε — доля случайных действий<div class="bar"><i id="l2-epsbar"></i></div></label>
+        <label class="f">Буфер повторов<div class="bar"><i id="l2-bufbar"></i></div></label>
+        <h3>Что можно сломать (применится после сброса)</h3>
+        <label class="c"><input type="checkbox" id="l2-replay" checked> буфер повторов</label>
+        <label class="c"><input type="checkbox" id="l2-target" checked> отдельная целевая сеть</label>
+        <label class="f">Исследование
+          <select id="l2-explore"><option value="0.97">обычное: ε убывает ×0.97 за эпизод</option><option value="0.8">быстро убывает: ×0.8</option><option value="none">почти нет: ε = 0.02 с начала</option></select></label>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="panel">
+        <h2>Награда за эпизод</h2>
+        <div class="legend"><span><i style="background:var(--raw)"></i>каждый эпизод</span><span><i style="background:var(--accent)"></i>среднее за 20</span></div>
+        <div class="chartbox" id="l2-chart"></div>
+        <p class="note">Пунктир — 150 очков: модуль стабильно садится мягко. Максимум около 200. Провалы в начале — это случайные действия (большой ε), а не глупость сети.</p>
+      </div>
+      <div class="panel">
+        <div class="row" style="justify-content:space-between"><h2>Один переход под лупой</h2><button class="btn" id="l2-sample">Другой переход из буфера</button></div>
+        <div class="bd mono" id="l2-loupe"><div class="act">Буфер пуст. Сделай хотя бы один шаг.</div></div>
+        <p class="note">Так выглядит обучение изнутри: сеть сравнивает своё предсказание с «целью» и сдвигает веса. За один шаг обучения это делается для 32 случайных переходов из буфера.</p>
+        <h3>Попробуй сам</h3>
+        <details class="task"><summary>Жми «1 шаг» несколько раз. Что попадает в буфер?</summary><p>Пятёрка: состояние, действие, награда, следующее состояние, признак конца эпизода. Обучение идёт не по текущему шагу, а по случайной выборке из этих записей.</p></details>
+        <details class="task"><summary>Нажми «Авто» и следи за картой решений. Как она меняется?</summary><p>Сначала пятна случайные. Потом появляется граница: «низко и быстро падаю — включить двигатель, высоко или медленно — выключить». Это и есть выученная стратегия.</p></details>
+        <details class="task"><summary>Найди в лупе переход с концом эпизода. Чем отличается цель?</summary><p>В ней нет слагаемого γ × max Q: будущего нет, цель равна просто награде (+100 за посадку или −100 за аварию). Это строка <span class="mono">Q_next_max[dones] = 0</span> в коде.</p></details>
+        <details class="task"><summary>Сброс с «почти нет исследования». Что происходит?</summary><p>Агент часто застревает: зависает в воздухе до конца времени или учится гораздо дольше. Без случайных действий он не узнаёт, что бывает лучше. Для этого и нужен ε.</p></details>
+        <details class="task"><summary>Сброс без буфера повторов. Что с графиком?</summary><p>Обучение идёт медленнее и скачет: сеть учится только на последних 32 шагах, они похожи друг на друга, и она «забывает» остальное.</p></details>
+        <details class="task"><summary>Сброс без целевой сети. Есть разница?</summary><p>В этой маленькой задаче почти нет: она слишком простая. В настоящем LunarLander и играх Atari без целевой сети обучение раскачивается, потому что цель сдвигается при каждом обновлении.</p></details>
+      </div>
+    </div>
+  </section>
+</div>
+<script>
+// ===== Общие утилиты =====
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+
+// ===== Лаба 1: FrozenLake + итерация по ценностям действий =====
+const FL = (() => {
+  const MAP = "SFFFFHFHFFFHHFFG", N = 16, A = 4;
+  const isHole = s => MAP[s] === "H", isGoal = s => MAP[s] === "G", isTerm = s => isHole(s) || isGoal(s);
+  function move(s, a) { // 0 влево, 1 вниз, 2 вправо, 3 вверх
+    let r = s >> 2, c = s & 3;
+    if (a === 0) c = Math.max(0, c - 1); else if (a === 1) r = Math.min(3, r + 1);
+    else if (a === 2) c = Math.min(3, c + 1); else r = Math.max(0, r - 1);
+    return r * 4 + c;
+  }
+  // истинная модель: по 1/3 на выбранное и два перпендикулярных направления
+  const outcomes = (s, a) => [(a + 3) % 4, a, (a + 1) % 4].map(d => move(s, d));
+  const REWARDS = {
+    default: { label: "исходная: +1 за цель", hole: 0, step: 0 },
+    hole: { label: "−1 за полынью", hole: -1, step: 0 },
+    step001: { label: "−0.01 за шаг", hole: 0, step: -0.01 },
+    step02: { label: "−0.2 за шаг", hole: 0, step: -0.2 },
+    both: { label: "−1 за полынью и −0.01 за шаг", hole: -1, step: -0.01 },
+  };
+  function shaped(kind, s2) {
+    const R = REWARDS[kind];
+    if (isGoal(s2)) return 1;
+    if (isHole(s2) && R.hole) return R.hole;
+    return R.step;
+  }
+  function argmax(q) { let b = 0; for (let a = 1; a < A; a++) if (q[a] > q[b]) b = a; return b; }
+
+  class Agent {
+    constructor(gamma, kind, seed) {
+      this.gamma = gamma; this.kind = kind; this.rnd = mulberry32(seed);
+      this.counts = Array.from({ length: N }, () => Array.from({ length: A }, () => new Array(N).fill(0)));
+      this.Q = Array.from({ length: N }, () => new Array(A).fill(0));
+      this.state = 0; this.t = 0; this.samples = 0; this.iter = 0; this.history = [];
+    }
+    envStep(s, a) { return outcomes(s, a)[Math.floor(this.rnd() * 3)]; }
+    record(s, a, s2) { this.counts[s][a][s2]++; }
+    collect(n) { // n случайных действий
+      const fresh = [];
+      for (let i = 0; i < n; i++) {
+        const a = Math.floor(this.rnd() * A), s2 = this.envStep(this.state, a);
+        this.record(this.state, a, s2); fresh.push([this.state, a, s2]); this.samples++; this.t++;
+        if (isTerm(s2) || this.t >= 100) { this.state = 0; this.t = 0; } else this.state = s2;
+      }
+      return fresh;
+    }
+    qValue(s, a) { // правая часть уравнения Беллмана по накопленной статистике
+      const c = this.counts[s][a], total = c.reduce((x, y) => x + y, 0), terms = [];
+      let v = 0;
+      if (total) for (let s2 = 0; s2 < N; s2++) if (c[s2]) {
+        const p = c[s2] / total, r = shaped(this.kind, s2), next = Math.max(...this.Q[s2]);
+        terms.push({ s2, n: c[s2], total, p, r, next }); v += p * (r + this.gamma * next);
+      }
+      return { v, terms, total };
+    }
+    qIteration() { // один проход по всем (s, a), как в Q_iteration()
+      let delta = 0;
+      for (let s = 0; s < N; s++) for (let a = 0; a < A; a++) {
+        const v = this.qValue(s, a).v; delta = Math.max(delta, Math.abs(v - this.Q[s][a])); this.Q[s][a] = v;
+      }
+      return delta;
+    }
+    policy() { return this.Q.map(argmax); }
+    episode(learn = true) { // жадный эпизод; возвращает путь
+      let s = 0; const path = [];
+      for (let t = 0; t < 100; t++) {
+        const a = argmax(this.Q[s]), s2 = this.envStep(s, a);
+        if (learn) this.record(s, a, s2);
+        path.push({ s, a, s2 }); s = s2; if (isTerm(s)) break;
+      }
+      return { path, win: isGoal(s), hole: isHole(s) };
+    }
+    test(n = 20) { let w = 0; for (let i = 0; i < n; i++) w += this.episode().win ? 1 : 0; return w; }
+    iteration() {
+      this.collect(100); this.qIteration(); const wins = this.test(20); this.iter++;
+      const st = policyStats(this.policy());
+      this.history.push({ iter: this.iter, test: wins / 20, pGoal: st.pGoal });
+      return wins;
+    }
+  }
+  function policyStats(pol) { // точный расчёт по истинной модели, 100 шагов
+    let dist = new Array(N).fill(0); dist[0] = 1; let pGoal = 0, pHole = 0, len = 0;
+    for (let t = 0; t < 100; t++) {
+      const nd = new Array(N).fill(0); let alive = 0;
+      for (let s = 0; s < N; s++) if (dist[s]) { alive += dist[s]; for (const s2 of outcomes(s, pol[s])) nd[s2] += dist[s] / 3; }
+      len += alive;
+      for (let s = 0; s < N; s++) { if (isGoal(s)) { pGoal += nd[s]; nd[s] = 0; } else if (isHole(s)) { pHole += nd[s]; nd[s] = 0; } }
+      dist = nd;
+    }
+    return { pGoal, pHole, len };
+  }
+  function optimal(gamma, kind) { // итерация по точной модели — эталон
+    let Q = Array.from({ length: N }, () => new Array(A).fill(0));
+    for (let it = 0; it < 5000; it++) {
+      let d = 0; const Q2 = Q.map(r => r.slice());
+      for (let s = 0; s < N; s++) if (!isTerm(s)) for (let a = 0; a < A; a++) {
+        let v = 0; for (const s2 of outcomes(s, a)) v += (shaped(kind, s2) + gamma * (isTerm(s2) ? 0 : Math.max(...Q[s2]))) / 3;
+        d = Math.max(d, Math.abs(v - Q[s][a])); Q2[s][a] = v;
+      }
+      Q = Q2; if (d < 1e-10) break;
+    }
+    return policyStats(Q.map(argmax));
+  }
+  return { MAP, N, A, isHole, isGoal, isTerm, outcomes, REWARDS, shaped, argmax, Agent, policyStats, optimal };
+})();
+
+// ===== Лаба 2: DQN на упрощённом (вертикальном) посадочном модуле =====
+const DQN = (() => {
+  // --- среда: высота y, скорость v; действия: 0 — ничего, 1 — главный двигатель ---
+  const G = -0.004, THRUST = 0.010, SAFE_V = 0.03, MAX_T = 200, TOP = 1.6;
+  const obs = e => [e.y, e.v * 10];
+  const phi = e => -100 * e.y - 400 * Math.abs(e.v);
+  function reset(rnd) { return { y: 0.9 + 0.3 * rnd(), v: -0.04 * rnd(), t: 0 }; }
+  function step(e, a) {
+    const before = phi(e);
+    const n = { v: e.v + G + (a ? THRUST : 0), t: e.t + 1 }; n.y = e.y + n.v;
+    let r, done = false, outcome = null;
+    if (n.y <= 0) { n.y = 0; done = true; outcome = Math.abs(n.v) <= SAFE_V ? "landed" : "crashed"; r = -100 * 0 - before - 400 * Math.abs(n.v) + (outcome === "landed" ? 100 : -100); }
+    else if (n.y > TOP) { done = true; outcome = "flew"; r = phi(n) - before - 100; }
+    else r = phi(n) - before;
+    if (a) r -= 0.3;
+    const truncated = !done && n.t >= MAX_T;
+    if (truncated) outcome = "timeout";
+    return { env: n, r, done, truncated, outcome };
+  }
+  // --- маленькая полносвязная сеть 2 → H → H → 2 с Adam ---
+  class Net {
+    constructor(h, rnd) {
+      const init = (n, m) => Float64Array.from({ length: n * m }, () => (rnd() * 2 - 1) * Math.sqrt(6 / m));
+      this.h = h; this.W1 = init(h, 2); this.b1 = new Float64Array(h); this.W2 = init(h, h); this.b2 = new Float64Array(h);
+      this.W3 = init(2, h); this.b3 = new Float64Array(2);
+      this.params = [this.W1, this.b1, this.W2, this.b2, this.W3, this.b3];
+      this.m = this.params.map(p => new Float64Array(p.length)); this.vv = this.params.map(p => new Float64Array(p.length)); this.step = 0;
+    }
+    forward(x, keep) {
+      const h = this.h, a1 = new Float64Array(h), a2 = new Float64Array(h), q = new Float64Array(2);
+      for (let i = 0; i < h; i++) { const z = this.W1[i * 2] * x[0] + this.W1[i * 2 + 1] * x[1] + this.b1[i]; a1[i] = z > 0 ? z : 0; }
+      for (let i = 0; i < h; i++) { let z = this.b2[i]; for (let j = 0; j < h; j++) z += this.W2[i * h + j] * a1[j]; a2[i] = z > 0 ? z : 0; }
+      for (let k = 0; k < 2; k++) { let z = this.b3[k]; for (let j = 0; j < h; j++) z += this.W3[k * h + j] * a2[j]; q[k] = z; }
+      if (keep) return { x, a1, a2, q };
+      return q;
+    }
+    copyFrom(o) { this.params.forEach((p, i) => p.set(o.params[i])); }
+    // один шаг градиентного спуска по пакету: loss = mean (Q(s,a) − target)²
+    train(batch, lr) {
+      const h = this.h, g = this.params.map(p => new Float64Array(p.length)); let loss = 0;
+      for (const { x, a, target } of batch) {
+        const f = this.forward(x, true), err = f.q[a] - target; loss += err * err;
+        const dq = 2 * err / batch.length, d2 = new Float64Array(h), d1 = new Float64Array(h);
+        g[5][a] += dq;
+        for (let j = 0; j < h; j++) { g[4][a * h + j] += dq * f.a2[j]; if (f.a2[j] > 0) d2[j] = dq * this.W3[a * h + j]; }
+        for (let i = 0; i < h; i++) if (d2[i]) { g[3][i] += d2[i]; for (let j = 0; j < h; j++) { g[2][i * h + j] += d2[i] * f.a1[j]; if (f.a1[j] > 0) d1[j] += d2[i] * this.W2[i * h + j]; } }
+        for (let i = 0; i < h; i++) if (d1[i]) { g[1][i] += d1[i]; g[0][i * 2] += d1[i] * x[0]; g[0][i * 2 + 1] += d1[i] * x[1]; }
+      }
+      this.step++; const b1 = 0.9, b2 = 0.999, c1 = 1 - Math.pow(b1, this.step), c2 = 1 - Math.pow(b2, this.step);
+      this.params.forEach((p, k) => { const m = this.m[k], v = this.vv[k], gk = g[k];
+        for (let i = 0; i < p.length; i++) { const gi = Math.max(-10, Math.min(10, gk[i])); m[i] = b1 * m[i] + (1 - b1) * gi; v[i] = b2 * v[i] + (1 - b2) * gi * gi; p[i] -= lr * (m[i] / c1) / (Math.sqrt(v[i] / c2) + 1e-8); } });
+      return loss / batch.length;
+    }
+  }
+  const DEFAULTS = { gamma: 0.99, lr: 1e-3, batch: 32, buffer: 20000, sync: 200, epsDecay: 0.97, epsFinal: 0.02, epsStart: 1, hidden: 32, useTarget: true, useReplay: true };
+  class Agent {
+    constructor(cfg, seed) {
+      this.cfg = Object.assign({}, DEFAULTS, cfg); this.rnd = mulberry32(seed);
+      this.Q = new Net(this.cfg.hidden, this.rnd); this.T = new Net(this.cfg.hidden, this.rnd); this.T.copyFrom(this.Q);
+      this.buf = []; this.ptr = 0; this.eps = this.cfg.epsStart; this.trainSteps = 0; this.syncs = 0; this.episodes = 0;
+      this.history = []; this.lastLoss = 0; this.env = reset(this.rnd); this.epReward = 0; this.epLoss = 0; this.epSteps = 0;
+    }
+    get capacity() { return this.cfg.useReplay ? this.cfg.buffer : this.cfg.batch; }
+    act(x, greedy) { if (!greedy && this.rnd() < this.eps) return { a: this.rnd() < 0.5 ? 0 : 1, random: true }; const q = this.Q.forward(x); return { a: q[1] > q[0] ? 1 : 0, random: false, q }; }
+    push(tr) { if (this.buf.length < this.capacity) this.buf.push(tr); else { this.ptr %= this.capacity; this.buf[this.ptr] = tr; } this.ptr = (this.ptr + 1) % this.capacity; }
+    explain(tr) { // разбор одного перехода: предсказание, цель, ошибка
+      const pred = this.Q.forward(tr.x)[tr.a], qn = this.T.forward(tr.x2), nextMax = tr.done ? 0 : Math.max(qn[0], qn[1]);
+      const target = tr.r + this.cfg.gamma * nextMax; return { pred, qn, nextMax, target, err: target - pred };
+    }
+    trainStep() {
+      const c = this.cfg; if (this.buf.length < c.batch) return null;
+      const batch = [];
+      for (let i = 0; i < c.batch; i++) { const tr = this.buf[Math.floor(this.rnd() * this.buf.length)]; batch.push({ x: tr.x, a: tr.a, target: this.explain(tr).target }); }
+      this.lastLoss = this.Q.train(batch, c.lr); this.trainSteps++;
+      if (!c.useTarget || this.trainSteps % c.sync === 0) { this.T.copyFrom(this.Q); this.syncs++; }
+      return this.lastLoss;
+    }
+    envStep() { // один шаг взаимодействия + один шаг обучения
+      const x = obs(this.env), { a, random } = this.act(x), res = step(this.env, a);
+      const tr = { x, a, r: res.r, x2: obs(res.env), done: res.done };
+      this.push(tr); this.env = res.env; this.epReward += res.r; this.epSteps++;
+      const loss = this.trainStep(); if (loss != null) this.epLoss += loss;
+      const out = { tr, random, res, finished: res.done || res.truncated };
+      if (out.finished) {
+        this.episodes++; this.history.push({ ep: this.episodes, reward: this.epReward, outcome: res.outcome, eps: this.eps, loss: this.epLoss / this.epSteps });
+        this.eps = Math.max(this.cfg.epsFinal, this.eps * this.cfg.epsDecay);
+        this.env = reset(this.rnd); this.epReward = 0; this.epLoss = 0; this.epSteps = 0;
+      }
+      return out;
+    }
+    runEpisode() { let o; do { o = this.envStep(); } while (!o.finished); return this.history[this.history.length - 1]; }
+    greedyEpisode(seed) { const rnd = mulberry32(seed); let e = reset(rnd), total = 0; const frames = [];
+      for (;;) { const { a, q } = this.act(obs(e), true), res = step(e, a); frames.push({ y: e.y, v: e.v, a, q }); total += res.r; e = res.env; if (res.done || res.truncated) { frames.push({ y: e.y, v: e.v, a: 0 }); return { frames, total, outcome: res.outcome }; } } }
+    evaluate(n = 30) { let s = 0, ok = 0; for (let i = 0; i < n; i++) { const r = this.greedyEpisode(1000 + i); s += r.total; ok += r.outcome === "landed" ? 1 : 0; } return { mean: s / n, landed: ok / n }; }
+  }
+  return { reset, step, obs, Net, Agent, DEFAULTS, SAFE_V, TOP, MAX_T };
+})();
+</script>
+<script>
+const $ = id => document.getElementById(id);
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmt = (x, d = 2) => (Math.abs(x) < 0.0005 ? 0 : x).toFixed(d).replace("-", "−");
+const ARROWS = ["←", "↓", "→", "↑"], ANAMES = ["влево", "вниз", "вправо", "вверх"];
+
+// ---------- вкладки ----------
+function showTab(name) {
+  for (const t of ["lab1", "lab2"]) { $(t).hidden = t !== name; $("tab-" + t).setAttribute("aria-selected", t === name); }
+  if (name === "lab2") L2.draw();
+}
+document.querySelectorAll(".tab").forEach(b => b.addEventListener("click", () => { location.hash = b.dataset.tab; showTab(b.dataset.tab); }));
+window.addEventListener("hashchange", () => showTab(location.hash === "#lab2" ? "lab2" : "lab1"));
+
+// ---------- линейный график (SVG) с подсказкой ----------
+function lineChart(box, { series, yMin, yMax, ref, xLabel, tip }) {
+  const W = 600, H = 230, L = 40, R = 12, T = 10, B = 30;
+  const n = Math.max(1, ...series.map(s => s.pts.length)), xMax = Math.max(10, n);
+  const X = i => L + (W - L - R) * (i / xMax), Y = v => T + (H - T - B) * (1 - (Math.min(yMax, Math.max(yMin, v)) - yMin) / (yMax - yMin));
+  let g = "";
+  for (let k = 0; k <= 4; k++) { const v = yMin + (yMax - yMin) * k / 4;
+    g += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)" stroke-width="1"/><text x="${L - 6}" y="${Y(v) + 4}" text-anchor="end" font-size="11" fill="var(--ink-2)">${+v.toFixed(2)}</text>`; }
+  for (let k = 0; k <= 5; k++) { const i = Math.round(xMax * k / 5); g += `<text x="${X(i)}" y="${H - 12}" text-anchor="middle" font-size="11" fill="var(--ink-2)">${i}</text>`; }
+  g += `<text x="${W - R}" y="${H - 1}" text-anchor="end" font-size="11" fill="var(--ink-2)">${xLabel}</text>`;
+  if (ref != null) g += `<line x1="${L}" x2="${W - R}" y1="${Y(ref)}" y2="${Y(ref)}" stroke="var(--ink-2)" stroke-width="1" stroke-dasharray="4 4"/>`;
+  for (const s of series) if (s.pts.length) {
+    g += `<polyline fill="none" stroke="${s.color}" stroke-width="${s.w}" stroke-linejoin="round" points="${s.pts.map((v, i) => X(i + 1) + "," + Y(v)).join(" ")}"/>`;
+    if (s.w >= 2) { const i = s.pts.length; g += `<circle cx="${X(i)}" cy="${Y(s.pts[i - 1])}" r="4" fill="${s.color}" stroke="var(--panel)" stroke-width="2"/>`; }
+  }
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img">${g}<line id="x" y1="${T}" y2="${H - B}" stroke="var(--ink-2)" stroke-width="1" visibility="hidden"/></svg><div class="tip" hidden></div>`;
+  const svg = box.firstChild, tipEl = box.lastChild, cross = svg.querySelector("#x");
+  svg.onmousemove = e => { const r = svg.getBoundingClientRect(), px = (e.clientX - r.left) / r.width * W;
+    const i = Math.round((px - L) / (W - L - R) * xMax); if (i < 1 || i > n || !series[0].pts.length) { tipEl.hidden = true; cross.setAttribute("visibility", "hidden"); return; }
+    cross.setAttribute("x1", X(i)); cross.setAttribute("x2", X(i)); cross.setAttribute("visibility", "visible");
+    tipEl.hidden = false; tipEl.textContent = tip(i - 1); tipEl.style.left = (X(i) / W * 100) + "%"; tipEl.style.top = "30%"; };
+  svg.onmouseleave = () => { tipEl.hidden = true; cross.setAttribute("visibility", "hidden"); };
+}
+
+// ================= ЛАБА 1 =================
+const L1 = (() => {
+  let ag, sel = 0, walker = null, playing = false, seed = 1, opt;
+  const rsel = $("l1-reward");
+  for (const k in FL.REWARDS) rsel.add(new Option(FL.REWARDS[k].label, k));
+  function reset() { ag = new FL.Agent(+$("l1-gamma").value, rsel.value, seed++); opt = FL.optimal(ag.gamma, ag.kind); walker = null;
+    log("Все Q равны нулю: агент ничего не знает. Начни с шага 1."); draw(); }
+  const log = t => $("l1-log").innerHTML = t;
+  function draw() {
+    const V = ag.Q.map(q => Math.max(...q)), pol = ag.policy(), view = $("l1-view").value;
+    const visits = ag.counts.map(c => c.reduce((s, a) => s + a.reduce((x, y) => x + y, 0), 0));
+    const vmax = Math.max(0.001, ...V.map(Math.abs)), nmax = Math.max(1, ...visits);
+    let g = "";
+    for (let s = 0; s < 16; s++) {
+      const x = (s & 3) * 100, y = (s >> 2) * 100, hole = FL.isHole(s), goal = FL.isGoal(s);
+      let fill = "var(--panel)", label = "", sub = "";
+      if (hole) { fill = "color-mix(in srgb, var(--bad) 30%, var(--panel))"; label = "H"; sub = "полынья"; }
+      else if (goal) { fill = "color-mix(in srgb, var(--good) 30%, var(--panel))"; label = "G"; sub = "цель"; }
+      else if (view === "v") { const k = Math.round(55 * Math.abs(V[s]) / vmax); fill = `color-mix(in srgb, var(--${V[s] < 0 ? "bad" : "accent"}) ${k}%, var(--panel))`;
+        label = V[s] === 0 && visits[s] === 0 ? "·" : ARROWS[pol[s]]; sub = fmt(V[s], Math.abs(V[s]) < 0.1 ? 3 : 2); }
+      else { fill = `color-mix(in srgb, var(--accent) ${Math.round(55 * visits[s] / nmax)}%, var(--panel))`; label = visits[s]; sub = "шагов отсюда"; }
+      if (view === "n" && (hole || goal)) sub = hole ? "полынья" : "цель";
+      g += `<g class="cell" tabindex="0" data-s="${s}" role="button" aria-label="клетка ${s}">
+        <rect x="${x + 2}" y="${y + 2}" width="96" height="96" rx="8" fill="${fill}" stroke="${s === sel ? "var(--ink)" : "var(--line)"}" stroke-width="${s === sel ? 3 : 1}"/>
+        <text x="${x + 10}" y="${y + 20}" font-size="11" style="fill:var(--ink-2)">${s}${s === 0 ? " старт" : ""}</text>
+        <text x="${x + 50}" y="${y + 60}" text-anchor="middle" font-size="${view === "n" && !hole && !goal ? 22 : 30}" font-weight="600">${label}</text>
+        <text x="${x + 50}" y="${y + 84}" text-anchor="middle" font-size="12">${sub}</text></g>`;
+    }
+    if (walker != null) g += `<circle cx="${(walker & 3) * 100 + 78}" cy="${(walker >> 2) * 100 + 24}" r="11" fill="var(--warn)" stroke="var(--panel)" stroke-width="3"/>`;
+    $("l1-grid").innerHTML = `<svg viewBox="0 0 400 400">${g}</svg>`;
+    const st = FL.policyStats(pol), last = ag.history[ag.history.length - 1];
+    $("l1-stats").innerHTML = [[ag.iter, "итераций"], [ag.samples, "случайных шагов"], [last ? Math.round(last.test * 20) + "/20" : "—", "последний тест"],
+      [fmt(st.pGoal), "дойдёт до цели (точно)"], [fmt(st.pHole), "упадёт в полынью"], [fmt(st.len, 1), "шагов в эпизоде"], [fmt(opt.pGoal), "лучшее возможное при этих γ и награде"]]
+      .map(([b, s]) => `<div class="stat"><b>${b}</b><span>${s}</span></div>`).join("");
+    breakdown();
+    lineChart($("l1-chart"), { series: [{ color: "var(--raw)", w: 1, pts: ag.history.map(h => h.test) }, { color: "var(--accent)", w: 2, pts: ag.history.map(h => h.pGoal) }],
+      yMin: 0, yMax: 1, ref: 0.8, xLabel: "итерация", tip: i => `итерация ${i + 1}: тест ${ag.history[i].test.toFixed(2)}, точно ${ag.history[i].pGoal.toFixed(2)}` });
+  }
+  function breakdown() {
+    $("l1-bd-title").textContent = `Разбор клетки ${sel}` + (sel === 0 ? " (старт)" : "");
+    if (FL.isTerm(sel)) { $("l1-bd").innerHTML = `<div class="act">Это ${FL.isGoal(sel) ? "цель" : "полынья"}: эпизод здесь заканчивается, действий нет, поэтому её ценность всегда 0. Награду агент получает за <i>переход</i> в эту клетку.</div>`; return; }
+    const best = FL.argmax(ag.Q[sel]);
+    $("l1-bd").innerHTML = [0, 1, 2, 3].map(a => { const r = ag.qValue(sel, a);
+      const terms = r.terms.length ? r.terms.map(t => `<div class="t">${t.n} из ${t.total} раз → клетка ${t.s2}${FL.isHole(t.s2) ? " (H)" : FL.isGoal(t.s2) ? " (G)" : ""}:  ${fmt(t.p)} × (${fmt(t.r)} + ${ag.gamma} × ${fmt(t.next, 3)})</div>`).join("")
+        : `<div class="t">данных нет: это действие отсюда ещё не пробовали</div>`;
+      const changed = Math.abs(r.v - ag.Q[sel][a]) > 5e-4;
+      return `<div class="act mono ${a === best && ag.samples ? "best" : ""}"><b>${ARROWS[a]} ${ANAMES[a]}: Q = ${fmt(ag.Q[sel][a], 3)}</b>${a === best && ag.samples ? " · лучшее" : ""}${changed ? ` · после пересчёта станет ${fmt(r.v, 3)}` : ""}${terms}</div>`; }).join("");
+  }
+  function doTest() { const w = ag.test(20); ag.iter++; const st = FL.policyStats(ag.policy()); ag.history.push({ iter: ag.iter, test: w / 20, pGoal: st.pGoal }); return w; }
+  $("l1-collect").onclick = () => { const f = ag.collect(100), goals = f.filter(x => FL.isGoal(x[2])).length, holes = f.filter(x => FL.isHole(x[2])).length;
+    log(`Сделано 100 случайных шагов (всего ${ag.samples}). В цель попал ${goals} раз, в полынью ${holes}. Q пока не изменились — нажми шаг 2.`); draw(); };
+  $("l1-q").onclick = () => { const d = ag.qIteration(); log(d < 1e-9 ? "Пересчёт ничего не изменил. Нужны новые данные (шаг 1) — или агент ещё ни разу не видел цель." : `Q пересчитаны. Самое большое изменение: ${fmt(d, 3)}. Ценность распространяется от цели к соседним клеткам.`); draw(); };
+  $("l1-test").onclick = () => { const w = doTest(); log(`Тест: ${w} из 20 эпизодов дошли до цели (reward = ${(w / 20).toFixed(2)}). Точка добавлена на график.`); draw(); };
+  const iter = n => { let w; for (let i = 0; i < n; i++) w = ag.iteration(); log(`Сделано итераций: ${n}. Последний тест: ${w} из 20.`); draw(); };
+  $("l1-iter").onclick = () => iter(1); $("l1-iter10").onclick = () => iter(10);
+  $("l1-play").onclick = () => { if (playing) return; playing = true; const ep = ag.episode(false); let i = 0; walker = 0; draw();
+    const tick = () => { if (i >= ep.path.length || i >= 40) { playing = false; log(ep.win ? `Дошёл до цели за ${ep.path.length} шагов.` : ep.hole ? `Провалился в полынью на шаге ${ep.path.length}.` : i >= 40 && !FL.isTerm(walker) ? "Показаны первые 40 шагов, агент всё ещё идёт." : "Не успел за 100 шагов."); walker = null; setTimeout(draw, 900); return; }
+      const p = ep.path[i++]; walker = p.s2; const want = FL.outcomes(p.s, p.a)[1];
+      log(`Шаг ${i}: в клетке ${p.s} выбрал ${ARROWS[p.a]} ${ANAMES[p.a]} — ${p.s2 === want ? "пошёл как хотел" : "поскользнулся"}, оказался в клетке ${p.s2}.`); draw(); setTimeout(tick, 450); };
+    setTimeout(tick, 450); };
+  $("l1-reset").onclick = reset; $("l1-gamma").onchange = reset; rsel.onchange = reset; $("l1-view").onchange = draw;
+  $("l1-grid").addEventListener("click", e => { const c = e.target.closest(".cell"); if (c) { sel = +c.dataset.s; draw(); } });
+  $("l1-grid").addEventListener("keydown", e => { const c = e.target.closest(".cell"); if (c && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); sel = +c.dataset.s; draw(); } });
+  reset();
+  return { draw };
+})();
+
+// ================= ЛАБА 2 =================
+const L2 = (() => {
+  let ag, seed = 1, auto = false, busy = false, view, loupe = null, outcome = null;
+  const OUT = { landed: ["мягкая посадка", "good"], crashed: ["разбился", "bad"], flew: ["улетел вверх", "bad"], timeout: ["завис до конца времени", "warn"] };
+  const log = t => $("l2-log").innerHTML = t;
+  function reset() { const ex = $("l2-explore").value;
+    ag = new DQN.Agent({ useReplay: $("l2-replay").checked, useTarget: $("l2-target").checked, epsDecay: ex === "none" ? 1 : +ex, epsStart: ex === "none" ? 0.02 : 1 }, seed++);
+    view = { y: ag.env.y, v: ag.env.v, a: 0 }; loupe = null; outcome = null; auto = false; $("l2-auto").textContent = "Авто";
+    log("Сеть случайная. Нажми «1 эпизод» и посмотри, что делает необученный агент."); draw(); }
+  function drawLander() {
+    const c = $("l2-lander"), x = c.getContext("2d"), W = c.width, H = c.height, gy = H - 34, py = y => gy - y / 1.6 * (gy - 20);
+    x.clearRect(0, 0, W, H); x.fillStyle = css("--line"); x.fillRect(0, gy, W, H - gy);
+    x.fillStyle = css("--good"); x.fillRect(W / 2 - 60, gy, 120, 5);
+    x.strokeStyle = css("--line"); x.setLineDash([4, 4]); x.beginPath(); x.moveTo(0, py(1.6)); x.lineTo(W, py(1.6)); x.stroke(); x.setLineDash([]);
+    x.fillStyle = css("--ink-2"); x.font = "12px Inter, sans-serif"; x.fillText("выше — вылет за границу", 8, py(1.6) + 14); x.fillText("площадка", W / 2 + 68, gy + 16);
+    const cy = py(view.y) - 14, cx = W / 2;
+    if (view.a) { x.fillStyle = css("--warn"); x.beginPath(); x.moveTo(cx - 8, cy + 14); x.lineTo(cx + 8, cy + 14); x.lineTo(cx, cy + 36); x.fill(); }
+    x.fillStyle = css("--accent"); x.beginPath(); x.moveTo(cx - 14, cy + 14); x.lineTo(cx - 10, cy - 10); x.lineTo(cx + 10, cy - 10); x.lineTo(cx + 14, cy + 14); x.fill();
+    x.strokeStyle = css("--ink"); x.lineWidth = 2; x.beginPath(); x.moveTo(cx - 12, cy + 12); x.lineTo(cx - 20, cy + 14); x.moveTo(cx + 12, cy + 12); x.lineTo(cx + 20, cy + 14); x.stroke();
+    // стрелка скорости
+    const len = Math.max(-60, Math.min(60, -view.v * 600)); x.strokeStyle = css("--ink-2"); x.beginPath(); x.moveTo(cx + 44, cy); x.lineTo(cx + 44, cy + len); x.stroke();
+    x.fillStyle = css("--ink-2"); x.fillText("скорость", cx + 52, cy + 4);
+  }
+  const VMIN = -0.12, VMAX = 0.06, YMAX = 1.5;
+  function drawMap() {
+    const c = $("l2-map"), x = c.getContext("2d"), W = c.width, H = c.height, nx = 48, ny = 30, on = css("--accent"), off = css("--line");
+    for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) { const v = VMIN + (VMAX - VMIN) * (i + .5) / nx, y = YMAX * (1 - (j + .5) / ny), q = ag.Q.forward([y, v * 10]);
+      x.fillStyle = q[1] > q[0] ? on : off; x.fillRect(Math.floor(i * W / nx), Math.floor(j * H / ny), Math.ceil(W / nx), Math.ceil(H / ny)); }
+    const zx = (0 - VMIN) / (VMAX - VMIN) * W; x.strokeStyle = css("--ink-2"); x.lineWidth = 1; x.setLineDash([3, 3]); x.beginPath(); x.moveTo(zx, 0); x.lineTo(zx, H); x.stroke(); x.setLineDash([]);
+    x.fillStyle = css("--ink"); x.font = "12px Inter, sans-serif"; x.fillText("скорость 0", zx + 6, 14); x.fillText("земля", 6, H - 6); x.fillText("высоко", 6, 14);
+    const px = (Math.max(VMIN, Math.min(VMAX, view.v)) - VMIN) / (VMAX - VMIN) * W, py = (1 - Math.min(YMAX, view.y) / YMAX) * H;
+    x.fillStyle = css("--warn"); x.strokeStyle = css("--panel"); x.lineWidth = 3; x.beginPath(); x.arc(px, py, 7, 0, 7); x.fill(); x.stroke();
+  }
+  function drawLoupe() {
+    if (!loupe) return; const t = loupe, e = ag.explain(t), g = ag.cfg.gamma;
+    const s = x => `высота ${fmt(x[0])}, скорость ${fmt(x[1] / 10, 3)}`;
+    $("l2-loupe").innerHTML = `<div class="act"><div class="t">состояние s:   ${s(t.x)}</div><div class="t">действие a:    ${t.a ? "двигатель" : "ничего"}</div><div class="t">награда r:     ${fmt(t.r)}</div><div class="t">дальше s′:     ${s(t.x2)}${t.done ? " — КОНЕЦ эпизода" : ""}</div></div>
+      <div class="act"><div class="t">сеть предсказала  Q(s, a) = <b>${fmt(e.pred)}</b></div>
+      <div class="t">цель = r + γ × max Q⁻(s′) = ${fmt(t.r)} + ${t.done ? "0 (будущего нет)" : `${g} × ${fmt(e.nextMax)}`} = <b>${fmt(e.target)}</b></div>
+      <div class="t">ошибка = цель − предсказание = <b>${fmt(e.err)}</b></div></div>
+      <div class="act" style="white-space:normal;font-family:var(--font-body)">${Math.abs(e.err) < 1 ? "Предсказание почти совпало с целью: тут сеть уже «согласована» с уравнением Беллмана." : `Сеть ${e.err > 0 ? "недооценила" : "переоценила"} это действие. Шаг обучения сдвинет Q(s, a) ${e.err > 0 ? "вверх" : "вниз"}.`}</div>`;
+  }
+  function draw() {
+    if ($("lab2").hidden) return; drawLander(); drawMap(); drawLoupe();
+    const h = ag.history, l = h.slice(-20), avg = l.length ? l.reduce((s, e) => s + e.reward, 0) / l.length : null;
+    $("l2-stats").innerHTML = [[ag.episodes, "эпизодов"], [avg == null ? "—" : fmt(avg, 0), "средняя награда за 20"], [fmt(ag.eps), "ε сейчас"],
+      [ag.buf.length, "переходов в буфере"], [ag.trainSteps, "шагов обучения"], [ag.syncs, "копирований в целевую сеть"]].map(([b, s]) => `<div class="stat"><b>${b}</b><span>${s}</span></div>`).join("");
+    $("l2-now").innerHTML = [[fmt(view.y), "высота"], [fmt(view.v, 3), "скорость (мягко: до ±0.03)"], [view.a ? "вкл" : "выкл", "двигатель"]].map(([b, s]) => `<div class="stat"><b>${b}</b><span>${s}</span></div>`).join("");
+    $("l2-epsbar").style.width = ag.eps * 100 + "%"; $("l2-bufbar").style.width = Math.min(100, ag.buf.length / Math.min(ag.capacity, 5000) * 100) + "%";
+    const o = outcome && OUT[outcome]; $("l2-outcome").className = "pill " + (o ? o[1] : ""); $("l2-outcome").textContent = o ? o[0] : "в полёте";
+    const avgs = h.map((_, i) => { const w = h.slice(Math.max(0, i - 19), i + 1); return w.reduce((s, e) => s + e.reward, 0) / w.length; });
+    lineChart($("l2-chart"), { series: [{ color: "var(--raw)", w: 1, pts: h.map(e => e.reward) }, { color: "var(--accent)", w: 2, pts: avgs }], yMin: -250, yMax: 250, ref: 150, xLabel: "эпизод",
+      tip: i => `эпизод ${i + 1}: ${h[i].reward.toFixed(0)} (${OUT[h[i].outcome][0]}), среднее ${avgs[i].toFixed(0)}` });
+  }
+  function one() { const before = ag.env, o = ag.envStep(); loupe = o.tr; view = { y: o.res.env.y, v: o.res.env.v, a: o.tr.a }; outcome = o.finished ? o.res.outcome : null; return { o, before }; }
+  function describe(o) { const h = ag.history[ag.history.length - 1]; return `Эпизод ${h.ep}: <b>${OUT[h.outcome][0]}</b>, награда ${fmt(h.reward, 0)}. Случайных действий было около ${Math.round(h.eps * 100)}%.`; }
+  function lock(v) { busy = v; for (const id of ["l2-step", "l2-ep", "l2-ep10", "l2-watch"]) $(id).disabled = v; }
+  $("l2-step").onclick = () => { const { o } = one(); log(o.finished ? describe(o) : `Шаг: действие «${o.tr.a ? "двигатель" : "ничего"}» ${o.random ? "выбрано <b>случайно</b> (ε)" : "выбрала <b>сеть</b>"}, награда ${fmt(o.tr.r)}. Переход записан в буфер${ag.trainSteps ? ", сделан шаг обучения по 32 случайным переходам" : " (обучение начнётся, когда наберётся 32)"}.`); draw(); };
+  $("l2-ep").onclick = () => { if (busy) return; lock(true); const tick = () => { const { o } = one(); draw(); if (o.finished) { log(describe(o)); lock(false); } else requestAnimationFrame(tick); }; tick(); };
+  function batch(n, done) { let i = 0; const tick = () => { const t = performance.now(); while (i < n && performance.now() - t < 30) { ag.runEpisode(); i++; }
+      const h = ag.history[ag.history.length - 1]; outcome = h.outcome; view = { y: ag.env.y, v: ag.env.v, a: 0 }; loupe = ag.buf[Math.floor(Math.random() * ag.buf.length)]; draw();
+      if (i < n && (!done || auto)) setTimeout(tick, 0); else done ? done() : (log(describe()), lock(false)); }; tick(); }
+  $("l2-ep10").onclick = () => { if (busy) return; lock(true); batch(10); };
+  $("l2-auto").onclick = () => { auto = !auto; $("l2-auto").textContent = auto ? "Стоп" : "Авто"; if (!auto) return; lock(true);
+    const loop = () => { if (!auto || ag.episodes >= 400) { auto = false; $("l2-auto").textContent = "Авто"; lock(false); log(describe()); return; } batch(1, () => setTimeout(loop, 0)); }; loop(); };
+  $("l2-watch").onclick = () => { if (busy) return; lock(true); const ep = ag.greedyEpisode(Math.floor(Math.random() * 1e6)); let i = 0;
+    const tick = () => { const f = ep.frames[Math.min(i, ep.frames.length - 1)]; view = { y: f.y, v: f.v, a: f.a }; outcome = i >= ep.frames.length - 1 ? ep.outcome : null; drawLander(); drawMap();
+      const o = outcome && OUT[outcome]; $("l2-outcome").className = "pill " + (o ? o[1] : ""); $("l2-outcome").textContent = o ? o[0] : "в полёте";
+      if (++i < ep.frames.length) requestAnimationFrame(tick); else { log(`Без случайных действий: <b>${OUT[ep.outcome][0]}</b>, награда ${fmt(ep.total, 0)}. Это то, что сеть умеет на самом деле сейчас.`); lock(false); draw(); } }; tick(); };
+  $("l2-sample").onclick = () => { if (ag.buf.length) { loupe = ag.buf[Math.floor(Math.random() * ag.buf.length)]; drawLoupe(); } };
+  $("l2-reset").onclick = () => { auto = false; lock(false); reset(); };
+  reset();
+  return { draw };
+})();
+showTab(location.hash === "#lab2" ? "lab2" : "lab1");
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => L2.draw());
+</script>
